@@ -1,0 +1,55 @@
+:root {
+  font-family:
+    "Plus Jakarta Sans",
+    "Segoe UI",
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
+  color: #d1d5db;
+  background:
+    radial-gradient(circle at top, rgba(190, 24, 93, 0.22), transparent 24%),
+    linear-gradient(180deg, #09090b 0%, #111113 48%, #070709 100%);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100svh;
+  background: transparent;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+a {
+  color: inherit;
+}
+
+textarea {
+  resize: vertical;
+}
+
+#root {
+  min-height: 100svh;
+}
