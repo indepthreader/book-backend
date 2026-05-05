@@ -1,4 +1,5 @@
 require("dotenv").config();
+
 const express = require("express");
 const http = require("http");
 const path = require("path");
@@ -22,42 +23,30 @@ const publicRoutes = require("./routes/public");
 const app = express();
 const server = http.createServer(app);
 
-// ✅ TRUST PROXY (important for VPS + Nginx)
 app.set("trust proxy", 1);
 
-// ✅ PORT
-const PORT = process.env.PORT || 2000;
+const PORT = process.env.PORT || 5000;
+const distPath = path.join(__dirname, "public");
 
-// -----------------------------
-// 🔐 MIDDLEWARE
-// -----------------------------
-
-// Security headers
 app.use(
   helmet({
-    crossOriginResourcePolicy: false, // 🔥 disable completely
+    crossOriginResourcePolicy: false,
+    contentSecurityPolicy: false,
   }),
 );
-// CORS (⚠️ restrict in production)
+
 app.use(
   cors({
-    origin: "*", // 🔥 change to your domain in production
+    origin: "*",
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   }),
 );
-// app.use((req, res, next) => {
-//   res.removeHeader("Cross-Origin-Resource-Policy");
-//   res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
-//   next();
-// });
-app.use(
-  "/api/storage/uploads",
-  express.static(path.join(__dirname, "storage/uploads")),
-);
+
 app.options(/.*/, cors());
 
-// Rate limiting (anti-spam)
+app.use(morgan("dev"));
+
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
@@ -66,26 +55,18 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// Razorpay webhook needs raw body for signature verification
 app.use("/api/payments/webhook", express.raw({ type: "application/json" }));
 
-// Body parser
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
 app.use("/storage", express.static(path.join(__dirname, "storage")));
+app.use(
+  "/api/storage/uploads",
+  express.static(path.join(__dirname, "storage/uploads")),
+);
 
-// Logger
-app.use(morgan("dev"));
-
-// -----------------------------
-// 🚀 ROUTES
-// -----------------------------
-
-app.get("/", (req, res) => {
-  res.send("🚀 API is running...");
-});
-
-// Health check (important for uptime monitoring)
+// ✅ API ROUTES FIRST
 app.get("/api/health", (req, res) => {
   res.json({
     status: "ok",
@@ -95,7 +76,6 @@ app.get("/api/health", (req, res) => {
 });
 
 app.use("/api/auth", emailOtpAuthRoutes);
-// app.use("/api/auth", googleAuthRoutes);
 app.use("/api", googleAuthRoutes);
 app.use("/api/community", communityRoutes);
 app.use("/api/uploads", uploadRoutes);
@@ -105,9 +85,16 @@ app.use("/api/payments", paymentRoutes);
 app.use("/api/aichat", aichat);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/public", publicRoutes);
-// -----------------------------
-// ❌ GLOBAL ERROR HANDLER
-// -----------------------------
+
+// ✅ VITE DIST STATIC AFTER API
+app.use(express.static(distPath));
+
+// ✅ SPA FALLBACK LAST ONLY
+app.get(/.*/, (req, res) => {
+  res.sendFile(path.join(distPath, "index.html"));
+});
+
+// ✅ ERROR HANDLER AFTER ROUTES
 app.use((err, req, res, next) => {
   const message =
     err?.error?.description ||
@@ -117,19 +104,18 @@ app.use((err, req, res, next) => {
     "Internal Server Error";
 
   console.error("API error:", message, err?.stack || err);
+
   res.status(err?.statusCode || err?.status || 500).json({
     success: false,
     message,
   });
 });
 
-// -----------------------------
-// 🚀 START SERVER
-// -----------------------------
 connectDB()
   .then(() => {
     server.listen(PORT, () => {
       console.log(`🚀 Server running on http://localhost:${PORT}`);
+      console.log(`📦 Serving frontend from: ${distPath}`);
     });
   })
   .catch((err) => {
@@ -137,9 +123,6 @@ connectDB()
     process.exit(1);
   });
 
-// -----------------------------
-// ⚠️ HANDLE CRASHES (VERY IMPORTANT)
-// -----------------------------
 process.on("unhandledRejection", (err) => {
   console.error("UNHANDLED REJECTION:", err);
 });
